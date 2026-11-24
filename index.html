@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>週末どこ行く？お出かけルーレット</title>
+  <style>
+    :root {
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --accent: #f59e0b;
+      --bg: #f0f9ff;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #bae6fd;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 14px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 1.55rem;
+      color: var(--primary-dark);
+    }
+
+    header p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1000px;
+      display: grid;
+      grid-template-columns: 1.12fr 0.88fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 840px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(14, 165, 233, 0.08);
+    }
+
+    /* カテゴリータブ */
+    .genre-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 16px;
+      justify-content: center;
+    }
+
+    .genre-btn {
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .genre-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary-dark);
+    }
+
+    .genre-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(14, 165, 233, 0.3);
+    }
+
+    /* ルーレット盤 */
+    .wheel-stage {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto 16px;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-top: 30px solid #e11d48;
+      filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.25));
+      z-index: 10;
+    }
+
+    canvas#wheel {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+      background: #fff;
+    }
+
+    .center-cap {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #fff;
+      border: 4px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* 操作ボタン */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .main-btn {
+      width: 100%;
+      max-width: 300px;
+      padding: 15px 24px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+      transition: transform 0.1s ease, filter 0.15s ease;
+    }
+
+    .main-btn:hover {
+      filter: brightness(1.05);
+    }
+
+    .main-btn:active {
+      transform: scale(0.97);
+    }
+
+    .main-btn.stop-mode {
+      background: linear-gradient(135deg, #e11d48, #be123c);
+      box-shadow: 0 6px 16px rgba(225, 29, 72, 0.35);
+    }
+
+    .main-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .sub-options {
+      display: flex;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .sub-options label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    /* 右側：候補リスト管理 */
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
+    .list-header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .count-badge {
+      background: #e0f2fe;
+      color: var(--primary-dark);
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .add-row input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+
+    .add-row input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .add-row button {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .item-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 400px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .item-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.88rem;
+    }
+
+    .item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .item-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .item-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 700;
+    }
+
+    .item-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-tag {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: #e0f2fe;
+      color: #0369a1;
+      flex-shrink: 0;
+    }
+
+    .del-btn {
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 1.05rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .del-btn:hover {
+      color: #e11d48;
+      background: #ffe4e6;
+    }
+
+    .list-footer {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ghost-btn {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .ghost-btn:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+
+    /* 結果モーダル */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.58);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 22px;
+      padding: 26px 22px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      animation: popIn 0.25s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.88); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: var(--primary-dark);
+      font-weight: 800;
+      font-size: 0.82rem;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .modal h3 {
+      margin: 6px 0 6px;
+      font-size: 1.5rem;
+      line-height: 1.35;
+      color: var(--text);
+    }
+
+    .modal-place {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 10px;
+    }
+
+    .modal-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .map-link {
+      display: block;
+      text-decoration: none;
+      background: #16a34a;
+      color: #fff;
+      font-weight: 700;
+      padding: 12px 16px;
+      border-radius: 12px;
+    }
+
+    .close-modal-btn {
+      border: 1.5px solid #cbd5e1;
+      background: #fff;
+      color: var(--text);
+      font-weight: 700;
+      padding: 11px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 99;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti-canvas"></canvas>
+
+  <header>
+    <h1>🚗 週末お出かけルーレット</h1>
+    <p>カテゴリーを選んでスタート！今度の週末はどこに行く？</p>
+  </header>
+
+  <div class="container">
+    <!-- 左側：ルーレット本体 -->
+    <section class="card">
+      <div class="genre-tabs" id="genre-tabs"></div>
+
+      <div class="wheel-stage">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="600" height="600"></canvas>
+        <div class="center-cap">🧭</div>
+      </div>
+
+      <div class="controls">
+        <button id="spin-btn" class="main-btn">スタート！</button>
+        <div class="sub-options">
+          <label><input type="checkbox" id="sound-toggle" checked /> 効果音あり</label>
+          <label><input type="checkbox" id="auto-stop-toggle" /> 3秒後に自動ストップ</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右側：候補リスト調整 -->
+    <section class="card">
+      <div class="list-header">
+        <h2 id="list-title">候補リスト</h2>
+        <span class="count-badge" id="count-badge">0件</span>
+      </div>
+
+      <div class="add-row">
+        <input type="text" id="new-item-input" placeholder="スポットを追加（例：堺・緑化センター）" />
+        <button id="add-btn">追加</button>
+      </div>
+
+      <ul class="item-list" id="item-list"></ul>
+
+      <div class="list-footer">
+        <button class="ghost-btn" id="select-all-btn">すべてチェック</button>
+        <button class="ghost-btn" id="reset-btn">初期リストに戻す</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- 結果モーダル -->
+  <div class="modal-backdrop" id="result-modal">
+    <div class="modal">
+      <div class="modal-badge" id="result-genre">カテゴリー</div>
+      <h3 id="result-name">スポット名</h3>
+      <div class="modal-place" id="result-place"></div>
+      <div class="modal-desc" id="result-desc"></div>
+      <div class="modal-actions">
+        <a id="map-link" class="map-link" href="#" target="_blank" rel="noopener noreferrer">📍 Googleマップで場所を見る</a>
+        <button id="close-modal-btn" class="close-modal-btn">閉じる（もう一回まわす）</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const RAW_DATA = [
+      // テーマパーク、遊園地
+      ["テーマパーク、遊園地", "USJ（ユニバーサル・スタジオ・ジャパン）★", "大阪市", "年パス勢のホームグラウンド！"],
+      ["テーマパーク、遊園地", "海遊館", "大阪市港区", "世界最大級の水族館。ジンベエザメの迫力は別格。"],
+      ["テーマパーク、遊園地", "レゴランド・ディスカバリー・センター大阪", "大阪市", "レゴの世界に没入できる屋内型パーク。"],
+      ["テーマパーク、遊園地", "ATCあそびマーレ", "大阪市", "国内最大級の室内遊園地。"],
+      ["テーマパーク、遊園地", "天王寺動物園", "大阪市天王寺区", "都会の真ん中でアフリカのサバンナを再現。"],
+      ["テーマパーク、遊園地", "リトルプラネット（ららぽーと和泉等）", "和泉市", "デジタル砂遊びなど、最新の屋内遊び。"],
+      ["テーマパーク、遊園地", "関西サイクルスポーツセンター", "河内長野市", "変わり種自転車が1日中楽しめる。運動量No.1。"],
+      ["テーマパーク、遊園地", "ハーベストの丘", "堺市南区", "動物との触れ合い、アスレチック、季節の花が楽しめる。"],
+      ["テーマパーク、遊園地", "VS PARK（セブンパーク天美内）", "松原市", "猛獣逃げきりなど、TV番組のようなスポーツ。"],
+      ["テーマパーク、遊園地", "VS PARK（ららぽーとEXPOCITY内）", "吹田市", "天美とはまた違うアクティビティが楽しめます。"],
+      ["テーマパーク、遊園地", "生駒山上遊園地", "生駒市", "景色が最高！低学年向けアトラクションが豊富。"],
+      ["テーマパーク、遊園地", "ひらかたパーク", "枚方市", "「ひらパー」の愛称で親しまれる、関西遊園地の定番。"],
+      ["テーマパーク、遊園地", "Bb箕面船場店", "箕面市", "ボウリング、カラオケ、キッズパークが1つに。"],
+      ["テーマパーク、遊園地", "ニフレル", "吹田市", "「感性にふれる」がコンセプト。アートのような展示。"],
+      ["テーマパーク、遊園地", "万博BEAST（ビースト）", "吹田市", "万博公園内の巨大立体アスレチック。"],
+      ["テーマパーク、遊園地", "京都水族館", "京都市下京区", "オオサンショウウオやペンギンが間近で見れる。"],
+      ["テーマパーク、遊園地", "和歌山アドベンチャーワールド", "和歌山県白浜町", "パンダとサファリ、イルカショーを一度に楽しめる。"],
+      ["テーマパーク、遊園地", "東映太秦映画村", "京都市", "忍者修行や立体迷路。時代劇の世界へ。"],
+      ["テーマパーク、遊園地", "須磨シーワールド", "神戸市須磨区", "2024年オープンの新スポット。シャチのショーが見れる。"],
+      ["テーマパーク、遊園地", "神戸アンパンマンこどもミュージアム", "神戸市", "ショーが豪華。5歳ならまだ全力で楽しめます。"],
+      ["テーマパーク、遊園地", "神戸どうぶつ王国", "神戸市中央区", "動物との距離が近く、エサやり体験が豊富。"],
+      ["テーマパーク、遊園地", "キッザニア甲子園 ★", "西宮市", "職業体験の最高峰。5歳と9歳はベストバランス。"],
+      ["テーマパーク、遊園地", "姫路セントラルパーク", "姫路市", "サファリと遊園地がドッキング。"],
+      ["テーマパーク、遊園地", "淡路ワールドパークONOKORO", "淡路市", "世界のミニチュア建造物と、芝滑りが楽しい。"],
+      ["テーマパーク、遊園地", "ニジゲンノモリ", "淡路市", "ドラえもん、クレヨンしんちゃん、ゴジラの体験型。"],
+      ["テーマパーク、遊園地", "手柄山遊園（跡地公園）", "姫路市", "レトロな雰囲気の散策スポット。"],
+      ["テーマパーク、遊園地", "赤穂海浜公園 タテホわくわくランド", "赤穂市", "入園無料で乗り物代のみ。リーズナブル。"],
+      ["テーマパーク、遊園地", "おもちゃ王国（兵庫）", "加東市", "おもちゃの部屋がたくさん。5歳の娘さんに最適。"],
+      ["テーマパーク、遊園地", "ネスタリゾート神戸", "三木市", "大自然の中のバギーやジップライン。"],
+      ["テーマパーク、遊園地", "和歌山マリーナシティ（ポルトヨーロッパ）", "和歌山市", "ヨーロッパの街並みと、海沿いの遊園地。"],
+      ["テーマパーク、遊園地", "白浜エネルギーランド", "白浜町", "トリックアートや不思議な体験ができる老舗パーク。"],
+      ["テーマパーク、遊園地", "ナガシマスパーランド", "三重県", "絶叫マシン好きならここ。アンパンマンパーク併設。"],
+      ["テーマパーク、遊園地", "志摩スペイン村 パルケエスパーニャ", "三重県", "待ち時間が少なく、パレードの距離が近い穴場。"],
+      ["テーマパーク、遊園地", "鈴鹿サーキットパーク", "三重県", "自分で運転できる乗り物が多く、達成感がある。"],
+      ["テーマパーク、遊園地", "フォレストアドベンチャー・栗東", "滋賀県", "本格的な森のアスレチック。"],
+      ["テーマパーク、遊園地", "ヤンマーミュージアム", "滋賀県", "本物のショベルカー操作ができる最新施設。"],
+      ["テーマパーク、遊園地", "パカブ（メニコンシアター等）", "滋賀県", "森の中に張り巡らされた巨大なネット。"],
+
+      // 体験・科学・学び
+      ["体験・科学・学び", "大阪市立科学館", "大阪市北区", "参加型展示が多く、プラネタリウムは国内最大級。"],
+      ["体験・科学・学び", "キッズプラザ大阪", "大阪市北区", "遊んで学べる子供のための博物館。巨大迷路が人気。"],
+      ["体験・科学・学び", "京都鉄道博物館", "京都市下京区", "本物の蒸気機関車や運転シミュレーターが圧巻。"],
+      ["体験・科学・学び", "ヤンマーミュージアム", "滋賀県長浜市", "ショベルカー操作やボルダリングなど体験型が充実。"],
+      ["体験・科学・学び", "カップヌードルミュージアム", "池田市", "マイカップヌードル作りは、こだわり派の息子さんに◎。"],
+      ["体験・科学・学び", "堺市立ビッグバン", "堺市南区", "巨大なジャングルジム「遊具の塔」は達成感抜群。"],
+      ["体験・科学・学び", "大阪府立弥生文化博物館", "和泉市", "弥生時代の暮らしを体験。勾玉作りなどのワークショップも。"],
+      ["体験・科学・学び", "バンドー神戸青少年科学館", "神戸市中央区", "実験ショーや科学工作が充実。遊びながら学べる。"],
+      ["体験・科学・学び", "ダスキンミュージアム", "吹田市", "ミスドのドーナツ作り体験ができる（要予約）。"],
+      ["体験・科学・学び", "明治なるほどファクトリー", "貝塚市", "お菓子の製造工程を間近で見学できる。"],
+      ["体験・科学・学び", "ガスの殿堂（ガス科学館）", "高石市", "堺から近く、エネルギーについて楽しく学べる。"],
+      ["体験・科学・学び", "カワサキワールド", "神戸市中央区", "バイクや新幹線、ヘリコプターの実物が展示。"],
+      ["体験・科学・学び", "あべのタスカル（防災センター）", "大阪市阿倍野区", "リアルな災害体験を通じて防災が学べる。"],
+      ["体験・科学・学び", "和歌山市立こども科学館", "和歌山市", "レトロだが充実した展示。コスパも非常に良い。"],
+      ["体験・科学・学び", "造幣博物館", "大阪市北区", "お金ができるまでを学べる。お花見シーズンも有名。"],
+      ["体験・科学・学び", "シマノ自転車博物館 ★", "堺市", "世界中の自転車がずらり。"],
+      ["体験・科学・学び", "堺伝統産業会館 ★", "堺市", "堺の包丁や線香の歴史を知る。"],
+      ["
